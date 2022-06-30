@@ -1,0 +1,48 @@
+version: 2.1
+parameters:
+  megalinter-tag: 
+    type: string
+    default: 'v5'
+
+jobs:
+  job-code-lint:
+    docker:
+      - image: megalinter/megalinter-ci_light:<< pipeline.parameters.megalinter-tag >>
+    parallelism: 3
+    resource_class: small
+    steps:
+      - checkout:
+          path: '/tmp/lint'
+
+      - run:
+          name: 'Run Megalinter Bash, Dockerfile, & others linters'
+          environment:
+            LINTERS: 'BASH DOCKERFILE YAML'
+          command: |
+            set -x
+            TESTS=$(echo -e ${LINTERS// /\\n} | circleci tests split)
+            ENABLE=$TESTS /entrypoint.sh
+
+  job-doc-lint:
+    docker:
+      - image: megalinter/megalinter-documentation:<< pipeline.parameters.megalinter-tag >>
+    parallelism: 3
+    resource_class: small
+    steps:
+      - checkout:
+          path: '/tmp/lint'
+
+      - run:
+          name: 'Run Megalinter Documentation'
+          environment:
+            LINTERS: 'MARKDOWN SPELL_MISSPELL SPELL_CSPELL'
+          command: |
+            set -x
+            TESTS=$(echo -e ${LINTERS// /\\n} | circleci tests split)
+            ENABLE=SPELL /entrypoint.sh
+
+workflows:
+  workflow-seed-mirrors:
+    jobs:
+      - job-code-lint
+      - job-doc-lint
